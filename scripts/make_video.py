@@ -42,9 +42,26 @@ def create_video(stats, output_name="update.mp4", total_duration=10, sequential=
     width, height = 1080, 1920
     fps = 60
     bg_image = "image.png"
+    # Font detection
     font_path = "C\\:/Windows/Fonts/impact.ttf"
     if not os.path.exists("C:/Windows/Fonts/impact.ttf"):
+        # Fallback for Windows
         font_path = "C\\:/Windows/Fonts/arialbd.ttf"
+        
+    # Check for Linux (GitHub Actions) paths
+    if not os.path.exists(font_path.replace("\\:", ":")):
+        linux_fonts = [
+            "/usr/share/fonts/truetype/roboto/hinted/Roboto-Black.ttf",
+            "/usr/share/fonts/truetype/open-sans/OpenSans-Bold.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        ]
+        for f in linux_fonts:
+            if os.path.exists(f):
+                font_path = f
+                break
+        else:
+            # Last resort
+            font_path = "arial.ttf"
     
     if not os.path.exists(bg_image):
         print(f"Error: {bg_image} not found.")
