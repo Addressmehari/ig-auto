@@ -2,7 +2,7 @@ name: Daily Video Generation
 
 on:
   schedule:
-    - cron: "30 19 * * *" # 01:00 AM IST (2 hours after data update)
+    - cron: "30 10 * * *" # 04:00 PM IST (1 hour after data update)
   workflow_dispatch: # Allows manual triggering
 
 jobs:

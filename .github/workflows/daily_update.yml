@@ -2,7 +2,7 @@ name: Daily City Update
 
 on:
   schedule:
-    - cron: '30 17 * * *' # 11:00 PM IST (UTC+5:30)
+    - cron: '30 9 * * *' # 03:00 PM IST (UTC+5:30)
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
