@@ -1,0 +1,50 @@
+name: Daily City Update
+
+on:
+  schedule:
+    - cron: '30 17 * * *' # 11:00 PM IST (UTC+5:30)
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to push changes back to the repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Step 1 Update Data
+        env:
+          IG_SESSION_B64: ${{ secrets.IG_SESSION_B64 }}
+        run: |
+          # Replace 'thefollowerstown_official' with your actual target username if different
+          python step1_update_data.py thefollowerstown_official
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add updated data files
+          git add data/*.json followers.txt
+          
+          # Commit only if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: auto-update city data for $(date +'%Y-%m-%d')"
+            git push
+          fi
