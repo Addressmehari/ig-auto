@@ -49,7 +49,13 @@ def main():
     if session_b64:
         print("🔑 Found IG_SESSION_B64 secret. Decoding to session.json...")
         try:
-            session_data = base64.b64decode(session_b64)
+            # Clean up whitespace and handle padding
+            clean_b64 = session_b64.strip()
+            missing_padding = len(clean_b64) % 4
+            if missing_padding:
+                clean_b64 += '=' * (4 - missing_padding)
+                
+            session_data = base64.b64decode(clean_b64)
             with open("session.json", "wb") as f:
                 f.write(session_data)
             print("✅ session.json created successfully.")
