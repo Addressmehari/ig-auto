@@ -1,0 +1,15 @@
+Day 1 of building a town for every follower. Today's report:
+[ 0.5s pause ]
+12 people moved in.
+[ 0.5s pause ]
+1 people left.
+[ 0.5s pause ]
+Current population: 13.
+
+[ 2.0s pause ]
+
+Step 1: Follow this page.
+Step 2: Visit the link in bio.
+Step 3: Search your username to see your house.
+If your house is not found, it will be built in tomorrow's video!
+One follow = one house. Yours is waiting.

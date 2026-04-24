@@ -24,8 +24,9 @@ import sys
 import argparse
 import re
 import shutil
+import random
 
-# ─── Video Settings ───────────────────────────────────────────
+# ──────────────────── Video Settings ──────────────────────────
 WIDTH = 1080
 HEIGHT = 1920
 FPS = 60
@@ -179,7 +180,10 @@ def add_text_overlays(input_file, output_file, texts, font):
         shutil.copy2(input_file, output_file)
         return
 
-    filters = []
+    # First pass: draw box backgrounds, then text on top
+    box_filters = []
+    text_filters = []
+
     for t in texts:
         text = t['text'].replace("'", "\u2019").replace(":", "\\:")
         size = t.get('size', 70)
@@ -187,6 +191,13 @@ def add_text_overlays(input_file, output_file, texts, font):
         appear = t.get('appear', 0)
         fade_in = t.get('fade_in', 0.3)
         pos = t.get('position', 'center')
+        box = t.get('box', False)
+        box_color = t.get('box_color', 'black@0.55')
+        border_color = t.get('border_color', 'black')
+        border_w = t.get('border_w', 5)
+        shadow_color = t.get('shadow_color', 'black@0.8')
+        shadow_x = t.get('shadow_x', 4)
+        shadow_y = t.get('shadow_y', 4)
 
         if pos == 'center':
             x, y = '(w-text_w)/2', '(h-text_h)/2'
@@ -196,21 +207,37 @@ def add_text_overlays(input_file, output_file, texts, font):
             x, y = '(w-text_w)/2', str(int(HEIGHT * 0.73))
         elif pos == 'custom_y':
             x, y = '(w-text_w)/2', str(t.get('y', HEIGHT // 2))
+        elif pos == 'left_pad':
+            x, y = str(t.get('x', 60)), str(t.get('y', HEIGHT // 2))
         else:
             x, y = '(w-text_w)/2', '(h-text_h)/2'
 
-        alpha = f"if(lt(t,{appear}),0,if(lt(t,{appear + fade_in}),(t-{appear})/{fade_in},1))"
+        # Support optional disappear + fade_out for one-at-a-time effect
+        if 'disappear' in t:
+            disappear = t['disappear']
+            fade_out = t.get('fade_out', 0.25)
+            alpha = (
+                f"if(lt(t,{appear}),0,"
+                f"if(lt(t,{appear + fade_in}),(t-{appear})/{fade_in},"
+                f"if(lt(t,{disappear}),1,"
+                f"if(lt(t,{disappear + fade_out}),1-(t-{disappear})/{fade_out},0))))"
+            )
+        else:
+            alpha = f"if(lt(t,{appear}),0,if(lt(t,{appear + fade_in}),(t-{appear})/{fade_in},1))"
 
-        filters.append(
+        box_str = f":box=1:boxcolor={box_color}:boxborderw={t.get('box_pad', 20)}" if box else ""
+
+        text_filters.append(
             f"drawtext=fontfile='{font}':text='{text}':"
             f"fontcolor={color}:fontsize={size}:"
             f"x={x}:y={y}:"
-            f"borderw=4:bordercolor=black:"
-            f"shadowcolor=black@0.6:shadowx=3:shadowy=3:"
+            f"borderw={border_w}:bordercolor={border_color}:"
+            f"shadowcolor={shadow_color}:shadowx={shadow_x}:shadowy={shadow_y}:"
             f"alpha='{alpha}'"
+            f"{box_str}"
         )
 
-    vf = ",".join(filters)
+    vf = ",".join(text_filters)
     cmd = [
         'ffmpeg', '-y',
         '-i', input_file,
@@ -220,6 +247,36 @@ def add_text_overlays(input_file, output_file, texts, font):
         output_file,
     ]
     run_cmd(cmd, f"Adding text to {os.path.basename(output_file)}")
+
+
+def add_character_overlay(input_file, output_file, char_image):
+    """
+    Overlay a character PNG (transparent BG) onto the bottom half of the clip.
+    The character is scaled to fill the full width, anchored at y=H/2.
+    """
+    if not os.path.exists(char_image):
+        print(f"  ⚠️  Character image not found: {char_image} — skipping overlay")
+        shutil.copy2(input_file, output_file)
+        return
+
+    # Scale character to 1.4x bigger (HEIGHT * 0.7 = 1344px tall at 1080x1920).
+    # Anchor y: position so feet land at the very bottom of the frame.
+    char_h = int(HEIGHT * 0.7)
+    anchor_y = HEIGHT - char_h          # feet at bottom edge
+    filter_complex = (
+        f"[1:v]scale=-2:{char_h}[char];"
+        f"[0:v][char]overlay=(W-w)/2:{anchor_y}:format=auto,setsar=1"
+    )
+    cmd = [
+        'ffmpeg', '-y',
+        '-i', input_file,
+        '-i', char_image,
+        '-filter_complex', filter_complex,
+        '-c:v', 'libx264', '-preset', 'fast', '-crf', '20',
+        '-pix_fmt', 'yuv420p', '-an',
+        output_file,
+    ]
+    run_cmd(cmd, f"Overlaying character on {os.path.basename(output_file)}")
 
 
 def concat_with_xfade(clip_files, output_file):
@@ -433,42 +490,177 @@ def main():
     rec_slices = compute_recording_slices(rec_dur)
     rec_clip_files = []
 
-    # Text overlays for each recording slice
+    # ── Text overlays for each recording slice ─────────────────
     rec_texts = [
-        # Clip 1: Hook
-        [{"text": f"DAY {data['day']}", "position": "center", "size": 140, "color": "white", "appear": 0.2, "fade_in": 0.15}],
-        # Clip 2: Tutorial
+
+        # ── Clip 1: Hook ──────────────────────────────────────────
         [
-            {"text": "HOW TO GET YOUR HOUSE", "position": "custom_y", "y": int(HEIGHT * 0.3), "size": 70, "color": "#FFD700", "appear": 0.2, "fade_in": 0.3},
-            {"text": "Step 1: Follow this page", "position": "custom_y", "y": int(HEIGHT * 0.4), "size": 50, "color": "white", "appear": 0.5, "fade_in": 0.3},
-            {"text": "Step 2: Visit the link in bio", "position": "custom_y", "y": int(HEIGHT * 0.48), "size": 50, "color": "white", "appear": 1.5, "fade_in": 0.3},
-            {"text": "Step 3: Search your username", "position": "custom_y", "y": int(HEIGHT * 0.56), "size": 50, "color": "white", "appear": 2.5, "fade_in": 0.3},
-            {"text": "Not found?", "position": "custom_y", "y": int(HEIGHT * 0.66), "size": 60, "color": "#00FFCC", "appear": 4.0, "fade_in": 0.3},
-            {"text": "It builds in tomorrow's video!", "position": "custom_y", "y": int(HEIGHT * 0.72), "size": 45, "color": "#00FFCC", "appear": 4.2, "fade_in": 0.3},
+            # GITVILLE label: bright gold, thick BLACK border
+            {
+                "text": "GITVILLE",
+                "position": "custom_y", "y": int(HEIGHT * 0.35),
+                "size": 100, "color": "#FFD700",
+                "appear": 0.0, "fade_in": 0.2,
+                "border_w": 8, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 5, "shadow_y": 5,
+            },
+            # DAY number: pure white, extra-thick BLACK border
+            {
+                "text": f"DAY {data['day']}",
+                "position": "custom_y", "y": int(HEIGHT * 0.45),
+                "size": 200, "color": "white",
+                "appear": 0.1, "fade_in": 0.15,
+                "border_w": 10, "border_color": "black",
+                "shadow_color": "black@0.95", "shadow_x": 6, "shadow_y": 6,
+            },
+            # Subtitle: bright cyan, thick BLACK border
+            {
+                "text": "Daily Update",
+                "position": "custom_y", "y": int(HEIGHT * 0.63),
+                "size": 55, "color": "#00E5FF",
+                "appear": 0.4, "fade_in": 0.3,
+                "border_w": 5, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 3, "shadow_y": 3,
+            },
         ],
-        # Clip 3: CTA
+
+        # ── Clip 2: Tutorial ──────────────────────────────────────
+        # Text stays in UPPER HALF only (y < HEIGHT/2 = 960px).
+        # Character avatar sits in the bottom half.
+        # Steps appear ONE AT A TIME — each fades out before the next.
         [
-            {"text": "YOUR HOUSE NEXT?", "position": "center", "size": 90, "color": "#FFD700", "appear": 0.2, "fade_in": 0.2},
-            {"text": "FOLLOW FOR YOUR HOUSE", "position": "bottom_third", "size": 50, "color": "white", "appear": 1.2, "fade_in": 0.3},
+            # Persistent header (stays whole clip) — BLACK on solid GOLD
+            {
+                "text": "  HOW TO GET YOUR HOUSE  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.04),
+                "size": 58, "color": "black",
+                "appear": 0.0, "fade_in": 0.2,
+                "box": True, "box_color": "#FFD700@1.0", "box_pad": 20,
+                "border_w": 0, "border_color": "black",
+                "shadow_color": "black@0.0", "shadow_x": 0, "shadow_y": 0,
+            },
+            # Step 1 — WHITE on solid BLUE, fades out at t=3.8
+            {
+                "text": "  1.  Follow this page  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.18),
+                "size": 62, "color": "white",
+                "appear": 0.5, "fade_in": 0.3,
+                "disappear": 3.8, "fade_out": 0.3,
+                "box": True, "box_color": "#1565C0@1.0", "box_pad": 22,
+                "border_w": 6, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 4, "shadow_y": 4,
+            },
+            # Step 2 — BLACK on solid LIME, fades out at t=7.5
+            {
+                "text": "  2.  Tap link in bio  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.18),
+                "size": 62, "color": "black",
+                "appear": 4.2, "fade_in": 0.3,
+                "disappear": 7.5, "fade_out": 0.3,
+                "box": True, "box_color": "#76FF03@1.0", "box_pad": 22,
+                "border_w": 0, "border_color": "black",
+                "shadow_color": "black@0.0", "shadow_x": 0, "shadow_y": 0,
+            },
+            # Step 3 — YELLOW on solid PURPLE, fades out at t=11.2
+            {
+                "text": "  3.  Search your username  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.18),
+                "size": 62, "color": "#FFE500",
+                "appear": 7.9, "fade_in": 0.3,
+                "disappear": 11.2, "fade_out": 0.3,
+                "box": True, "box_color": "#6A1B9A@1.0", "box_pad": 22,
+                "border_w": 6, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 4, "shadow_y": 4,
+            },
+            # Closing note — BLACK on solid CYAN, stays till end
+            {
+                "text": "  Not there yet? Builds overnight!  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.18),
+                "size": 46, "color": "black",
+                "appear": 11.6, "fade_in": 0.4,
+                "box": True, "box_color": "#00E5FF@1.0", "box_pad": 18,
+                "border_w": 0, "border_color": "black",
+                "shadow_color": "black@0.0", "shadow_x": 0, "shadow_y": 0,
+            },
         ],
+
+        # ── Clip 3: CTA (no character) ────────────────────────────
+        [
+            # BLACK text on solid GOLD
+            {
+                "text": "  YOUR HOUSE IS WAITING  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.37),
+                "size": 76, "color": "black",
+                "appear": 0.1, "fade_in": 0.2,
+                "box": True, "box_color": "#FFD700@1.0", "box_pad": 24,
+                "border_w": 0, "border_color": "black",
+                "shadow_color": "black@0.0", "shadow_x": 0, "shadow_y": 0,
+            },
+            # WHITE text on solid RED box, BLACK border
+            {
+                "text": "  FOLLOW + FIND YOUR NAME  ",
+                "position": "custom_y", "y": int(HEIGHT * 0.52),
+                "size": 54, "color": "white",
+                "appear": 0.8, "fade_in": 0.25,
+                "box": True, "box_color": "#D50000@1.0", "box_pad": 20,
+                "border_w": 6, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 4, "shadow_y": 4,
+            },
+            # Lime green floating text, black border, no box
+            {
+                "text": "New houses built EVERY day",
+                "position": "custom_y", "y": int(HEIGHT * 0.66),
+                "size": 46, "color": "#76FF03",
+                "appear": 1.6, "fade_in": 0.35,
+                "border_w": 6, "border_color": "black",
+                "shadow_color": "black@0.9", "shadow_x": 4, "shadow_y": 4,
+            },
+        ],
+
     ]
+
+
 
     rec_target_durs = rec_clip_durs if has_stats else rec_clip_durs
     clip_names = ["hook", "tutorial", "cta"]
+
+    # Pick one character avatar for the tutorial clip (male or female)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    char_candidates = [
+        os.path.join(project_root, "images", "female.png"),
+        os.path.join(project_root, "images", "male.png"),
+    ]
+    # Filter to only images that actually exist, then pick one at random
+    available_chars = [c for c in char_candidates if os.path.exists(c)]
+    chosen_char = random.choice(available_chars) if available_chars else None
+    if chosen_char:
+        print(f"  🧑  Tutorial character: {os.path.basename(chosen_char)}")
+    else:
+        print("  ⚠️  No character images found in images/ — skipping avatar")
 
     for i, (start, natural_dur) in enumerate(rec_slices):
         target_dur = rec_target_durs[i]
         actual_dur = target_dur
 
-        raw_file = os.path.join(tmp_dir, f"rec_{clip_names[i]}_raw.mp4")
+        raw_file   = os.path.join(tmp_dir, f"rec_{clip_names[i]}_raw.mp4")
+        char_file  = os.path.join(tmp_dir, f"rec_{clip_names[i]}_char.mp4")
         final_file = os.path.join(tmp_dir, f"rec_{clip_names[i]}.mp4")
 
         prepare_clip(recording, raw_file, actual_dur, trim_start=start)
 
-        if not args.skip_text and i < len(rec_texts) and rec_texts[i]:
-            add_text_overlays(raw_file, final_file, rec_texts[i], font)
+        # ── Tutorial clip only: overlay the character in the bottom half ──
+        if i == 1 and chosen_char and not args.skip_text:
+            add_character_overlay(raw_file, char_file, chosen_char)
+            base_for_text = char_file
         else:
-            shutil.copy2(raw_file, final_file)
+            base_for_text = raw_file
+
+        # ── Add text overlays on top ──
+        if not args.skip_text and i < len(rec_texts) and rec_texts[i]:
+            add_text_overlays(base_for_text, final_file, rec_texts[i], font)
+        else:
+            shutil.copy2(base_for_text, final_file)
 
         rec_clip_files.append(final_file)
         print(f"  ✅ {clip_names[i]}: {start:.1f}s → {start + actual_dur:.1f}s ({actual_dur:.2f}s)")
