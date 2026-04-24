@@ -443,7 +443,8 @@ def main():
             {"text": "Step 1: Follow this page", "position": "custom_y", "y": int(HEIGHT * 0.4), "size": 50, "color": "white", "appear": 0.5, "fade_in": 0.3},
             {"text": "Step 2: Visit the link in bio", "position": "custom_y", "y": int(HEIGHT * 0.48), "size": 50, "color": "white", "appear": 1.5, "fade_in": 0.3},
             {"text": "Step 3: Search your username", "position": "custom_y", "y": int(HEIGHT * 0.56), "size": 50, "color": "white", "appear": 2.5, "fade_in": 0.3},
-            {"text": "Not found? It builds in tomorrow's video!", "position": "custom_y", "y": int(HEIGHT * 0.68), "size": 55, "color": "#00FFCC", "appear": 4.0, "fade_in": 0.3},
+            {"text": "Not found?", "position": "custom_y", "y": int(HEIGHT * 0.66), "size": 60, "color": "#00FFCC", "appear": 4.0, "fade_in": 0.3},
+            {"text": "It builds in tomorrow's video!", "position": "custom_y", "y": int(HEIGHT * 0.72), "size": 45, "color": "#00FFCC", "appear": 4.2, "fade_in": 0.3},
         ],
         # Clip 3: CTA
         [
