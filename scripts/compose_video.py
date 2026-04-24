@@ -59,10 +59,24 @@ def probe_duration(filepath):
 
 
 def get_font():
-    """Get available Impact font path for FFmpeg."""
+    """Get available Impact-style font path for FFmpeg."""
+    # Windows paths
     if os.path.exists("C:/Windows/Fonts/impact.ttf"):
         return r"C\:/Windows/Fonts/impact.ttf"
-    return r"C\:/Windows/Fonts/arialbd.ttf"
+    if os.path.exists("C:/Windows/Fonts/arialbd.ttf"):
+        return r"C\:/Windows/Fonts/arialbd.ttf"
+        
+    # Linux (GitHub Actions) paths
+    linux_fonts = [
+        "/usr/share/fonts/truetype/roboto/hinted/Roboto-Black.ttf",
+        "/usr/share/fonts/truetype/open-sans/OpenSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    ]
+    for f in linux_fonts:
+        if os.path.exists(f):
+            return f
+            
+    return "arial.ttf"
 
 
 def parse_script(script_file):
