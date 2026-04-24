@@ -1,4 +1,5 @@
 import os
+import random
 import json
 import requests
 import argparse
@@ -144,7 +145,14 @@ async def main():
     # ── TTS ───────────────────────────────────────────────────────────────────
     print("Generating voice narration (with precise pauses for stat sync)...")
     try:
-        voice = "en-US-GuyNeural"
+        # Randomly pick male or female voice each run
+        gender = random.choice(["male", "female"])
+        voice = "en-US-GuyNeural" if gender == "male" else "en-US-JennyNeural"
+        print(f"  🎙️  Voice gender: {gender} ({voice})")
+        # Save gender choice so compose_video.py picks the matching avatar
+        import json as _json
+        with open("voice_choice.json", "w") as _vf:
+            _json.dump({"gender": gender, "voice": voice}, _vf)
         audio_files = []
         for i, text in enumerate(texts):
             fname = f"voice{i}.mp3"

@@ -624,20 +624,44 @@ def main():
     rec_target_durs = rec_clip_durs if has_stats else rec_clip_durs
     clip_names = ["hook", "tutorial", "cta"]
 
-    # Pick one character avatar for the tutorial clip (male or female)
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # ── Pick avatar that MATCHES the voice gender ──────────────
+    # generate_script.py writes voice_choice.json with {"gender": "male"/"female"}
+    script_dir   = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
-    char_candidates = [
-        os.path.join(project_root, "images", "female.png"),
-        os.path.join(project_root, "images", "male.png"),
-    ]
-    # Filter to only images that actually exist, then pick one at random
-    available_chars = [c for c in char_candidates if os.path.exists(c)]
-    chosen_char = random.choice(available_chars) if available_chars else None
-    if chosen_char:
-        print(f"  🧑  Tutorial character: {os.path.basename(chosen_char)}")
+
+    gender = None
+    voice_choice_file = "voice_choice.json"
+    if os.path.exists(voice_choice_file):
+        try:
+            import json as _json
+            with open(voice_choice_file, "r") as _vf:
+                gender = _json.load(_vf).get("gender")  # "male" or "female"
+        except Exception:
+            gender = None
+
+    if gender == "male":
+        preferred = os.path.join(project_root, "images", "male.png")
+        fallback  = os.path.join(project_root, "images", "female.png")
+    elif gender == "female":
+        preferred = os.path.join(project_root, "images", "female.png")
+        fallback  = os.path.join(project_root, "images", "male.png")
     else:
-        print("  ⚠️  No character images found in images/ — skipping avatar")
+        # No voice_choice.json yet — pick at random
+        preferred = os.path.join(project_root, "images",
+                                 random.choice(["male.png", "female.png"]))
+        fallback  = None
+
+    if os.path.exists(preferred):
+        chosen_char = preferred
+    elif fallback and os.path.exists(fallback):
+        chosen_char = fallback
+    else:
+        chosen_char = None
+
+    if chosen_char:
+        print(f"  [CHAR]  Tutorial character: {os.path.basename(chosen_char)} (gender={gender or 'random'})")
+    else:
+        print("  [!]  No character images found in images/ -- skipping avatar")
 
     for i, (start, natural_dur) in enumerate(rec_slices):
         target_dur = rec_target_durs[i]
