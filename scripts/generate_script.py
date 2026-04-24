@@ -83,14 +83,12 @@ def get_town_stats(names_file, houses_file):
         try:
             with open(meta_file, 'r') as f:
                 meta = json.load(f)
-                day_x = meta.get("last_day", 0) + 1
+                day_x = meta.get("last_day", 1)
         except Exception:
             day_x = 1
 
-    if not os.path.exists("web/data"):
-        os.makedirs("web/data")
-    with open(meta_file, 'w') as f:
-        json.dump({"last_day": day_x}, f)
+    # Just ensure stats day is set
+    stats_day = day_x
 
     return {
         "new_followers": new_followers,

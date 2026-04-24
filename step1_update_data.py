@@ -129,6 +129,21 @@ def main():
     # 3. Update Houses Data
     run_step([sys.executable, "scripts/fetch_houses.py", "followers.txt"])
     
+    # 4. Increment Day Counter
+    meta_file = "web/data/town_meta.json"
+    day_x = 1
+    if os.path.exists(meta_file):
+        try:
+            with open(meta_file, 'r') as f:
+                meta = json.load(f)
+                day_x = meta.get("last_day", 0) + 1
+        except Exception:
+            day_x = 1
+    
+    with open(meta_file, 'w') as f:
+        json.dump({"last_day": day_x}, f)
+    print(f"📅 Day counter updated to: {day_x}")
+    
     print("\n==================================================")
     print("✅ STEP 1 COMPLETE!")
     print("==================================================")
