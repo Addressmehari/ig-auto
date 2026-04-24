@@ -13,7 +13,7 @@ def load_json(path):
         return None
 
 def compute_stats_before(names_set):
-    houses = load_json("data/houses.json") or []
+    houses = load_json("web/data/houses.json") or []
     existing_active = set(
         h["username"] for h in houses
         if "username" in h and not h.get("abandoned", False)
@@ -62,15 +62,42 @@ def main():
             print("   Make sure session.json is present or IG_SESSION_B64 is set in your secrets.")
 
     # 1. Fetch Followers
+    # First, let's remember the 'Mayor' (the first name in followers.txt)
+    mayor = None
+    if os.path.exists("followers.txt"):
+        try:
+            with open("followers.txt", "r", encoding="utf-8") as f:
+                first_part = f.read().split(',')[0].strip()
+                if first_part:
+                    mayor = first_part
+                    print(f"👑 Mayor identified: {mayor}")
+        except Exception:
+            pass
+
     run_step([sys.executable, "scripts/fetch_followers.py", args.target, "--delay", str(args.delay[0]), str(args.delay[1])])
     
     # Read the names we just fetched
     try:
         with open("followers.txt", "r", encoding="utf-8") as f:
             content = f.read()
-        names_set = set(n.strip() for n in content.replace(",", "\n").split("\n") if n.strip())
+        
+        # Parse names
+        new_names = [n.strip() for n in content.replace(",", "\n").split("\n") if n.strip()]
+        
+        # If we have a mayor, ensure they are at the top and not duplicated
+        if mayor:
+            if mayor in new_names:
+                new_names.remove(mayor)
+            new_names = [mayor] + new_names
+            
+            # Rewrite followers.txt with mayor at the top
+            with open("followers.txt", "w", encoding="utf-8") as f:
+                f.write(",".join(new_names))
+            print(f"✅ followers.txt updated with {mayor} at the top.")
+
+        names_set = set(new_names)
     except Exception as e:
-        print(f"❌ Failed to read followers.txt: {e}")
+        print(f"❌ Failed to read or update followers.txt: {e}")
         sys.exit(1)
 
     # 2. Calculate Stats BEFORE mutating the house data
@@ -84,8 +111,8 @@ def main():
         "newcomer_names_str": newcomer_names_str
     }
     
-    os.makedirs("data", exist_ok=True)
-    with open("data/daily_stats.json", "w", encoding="utf-8") as f:
+    os.makedirs("web/data", exist_ok=True)
+    with open("web/data/daily_stats.json", "w", encoding="utf-8") as f:
         json.dump(stats, f)
         
     print(f"\n  📊  Stats preview:")

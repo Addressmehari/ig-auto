@@ -24,11 +24,11 @@ def main():
     print("🎬 STEP 2: CREATING THE DAILY VIDEO")
     print("==================================================")
 
-    if not os.path.exists("data/daily_stats.json"):
-        print("❌ data/daily_stats.json not found! Please run step1_update_data.py first.")
+    if not os.path.exists("web/data/daily_stats.json"):
+        print("❌ web/data/daily_stats.json not found! Please run step1_update_data.py first.")
         sys.exit(1)
 
-    with open("data/daily_stats.json", "r", encoding="utf-8") as f:
+    with open("web/data/daily_stats.json", "r", encoding="utf-8") as f:
         stats = json.load(f)
 
     newcomers = stats["newcomers"]
@@ -57,7 +57,7 @@ def main():
     run_step([
         sys.executable, "scripts/generate_script.py",
         "--names", "followers.txt",
-        "--houses", "data/houses.json",
+        "--houses", "web/data/houses.json",
         "--model", args.groq_model,
         "--newcomers", str(newcomers),
         "--unfollows", str(newly_abandoned)

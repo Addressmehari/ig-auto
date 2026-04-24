@@ -39,7 +39,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # Add updated data files
-          git add data/*.json followers.txt
+          git add web/data/*.json followers.txt
           
           # Commit only if there are changes
           if git diff --staged --quiet; then

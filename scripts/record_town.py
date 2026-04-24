@@ -48,7 +48,7 @@ def grid_to_world(gx, gy):
 
 def get_house_data():
     """Load houses.json to know how many houses exist and where the latest ones are."""
-    houses_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "houses.json")
+    houses_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "data", "houses.json")
     if not os.path.exists(houses_file):
         return [], []
 

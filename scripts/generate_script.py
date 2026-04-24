@@ -77,7 +77,7 @@ def get_town_stats(names_file, houses_file):
     total_pop     = len(target_residents)
 
     # Persistent day counter
-    meta_file = "data/town_meta.json"
+    meta_file = "web/data/town_meta.json"
     day_x = 1
     if os.path.exists(meta_file):
         try:
@@ -87,8 +87,8 @@ def get_town_stats(names_file, houses_file):
         except Exception:
             day_x = 1
 
-    if not os.path.exists("data"):
-        os.makedirs("data")
+    if not os.path.exists("web/data"):
+        os.makedirs("web/data")
     with open(meta_file, 'w') as f:
         json.dump({"last_day": day_x}, f)
 
@@ -109,7 +109,7 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Generate a video script for GitVille using Groq AI.")
     parser.add_argument("--names",      default="names.txt",        help="Path to names.txt")
-    parser.add_argument("--houses",     default="data/houses.json", help="Path to houses.json")
+    parser.add_argument("--houses",     default="web/data/houses.json", help="Path to houses.json")
     parser.add_argument("--model",      default="qwen/qwen3-32b",   help="Groq model")
     parser.add_argument("--day",        type=int,                   help="Override Day number")
     parser.add_argument("--newcomers",  type=int,                   help="Override newcomers count")

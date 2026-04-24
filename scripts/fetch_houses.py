@@ -201,9 +201,9 @@ def main():
 
     # Load existing data if it exists
     existing_data = []
-    if os.path.exists("data/houses.json"):
+    if os.path.exists("web/data/houses.json"):
         try:
-            with open("data/houses.json", "r") as f:
+            with open("web/data/houses.json", "r") as f:
                 existing_data = json.load(f)
         except Exception as e:
             print(f"Warning: Could not load existing houses.json: {e}")
@@ -225,11 +225,11 @@ def main():
     print(f"Syncing city for {len(names)} citizens...")
     houses, roads = build_city(names, existing_data)
     
-    if not os.path.exists("data"): os.makedirs("data")
+    if not os.path.exists("web/data"): os.makedirs("web/data")
         
-    with open("data/houses.json", "w") as f: json.dump(houses, f, indent=4)
-    with open("data/roads.json", "w") as f: json.dump([{"x": int(r[0]), "y": int(r[1])} for r in roads], f, indent=4)
-    with open("data/world.json", "w") as f: json.dump({"weather": "none", "timeOfDay": "day"}, f, indent=4)
+    with open("web/data/houses.json", "w") as f: json.dump(houses, f, indent=4)
+    with open("web/data/roads.json", "w") as f: json.dump([{"x": int(r[0]), "y": int(r[1])} for r in roads], f, indent=4)
+    with open("web/data/world.json", "w") as f: json.dump({"weather": "none", "timeOfDay": "day"}, f, indent=4)
         
     print(f"Total population: {len([h for h in houses if 'username' in h and not h.get('abandoned')])} active, {len([h for h in houses if h.get('abandoned')])} abandoned.")
 
