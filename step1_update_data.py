@@ -136,5 +136,9 @@ def main():
     print("The changes should now trigger a deployment to your live website.")
     print("\n⏳ Please WAIT for the website to fully update before running step2_make_video.py!")
 
+    # 4. Notify Telegram
+    print("\n📤 Sending stats to Telegram...")
+    run_step([sys.executable, "send_telegram_stats.py"])
+
 if __name__ == "__main__":
     main()
