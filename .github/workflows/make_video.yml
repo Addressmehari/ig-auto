@@ -45,6 +45,8 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          IG_SESSION_B64: ${{ secrets.IG_SESSION_B64 }}
         run: |
           python send_telegram_video.py
 

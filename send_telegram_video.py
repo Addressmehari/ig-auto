@@ -81,8 +81,7 @@ def upload_to_instagram(video_path, caption):
                 print(f"⚠️ Failed to load {session_file}: {e}")
 
     if not session_loaded:
-        print("❌ Error: No Instagram session found (checked IG_SESSION_B64 and session.json).")
-        return
+        raise Exception("No Instagram session found (checked IG_SESSION_B64 and session.json).")
 
     print(f"📸 Uploading {video_path} to Instagram...")
     try:
