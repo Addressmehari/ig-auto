@@ -20,10 +20,10 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
 DATA_RESETS = {
-    "data/houses.json":    [],
-    "data/roads.json":     [],
-    "data/world.json":     {"weather": "none", "timeOfDay": "day"},
-    "data/town_meta.json": {"last_day": 0},
+    "web/data/houses.json":    [],
+    "web/data/roads.json":     [],
+    "web/data/world.json":     {"weather": "none", "timeOfDay": "day"},
+    "web/data/town_meta.json": {"last_day": 0},
 }
 
 GENERATED_FILES = [
