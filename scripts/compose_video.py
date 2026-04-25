@@ -249,34 +249,53 @@ def add_text_overlays(input_file, output_file, texts, font):
     run_cmd(cmd, f"Adding text to {os.path.basename(output_file)}")
 
 
-def add_character_overlay(input_file, output_file, char_image):
+def add_character_overlay(input_file, output_file, poses):
     """
-    Overlay a character PNG (transparent BG) onto the bottom half of the clip.
-    The character is scaled to fill the full width, anchored at y=H/2.
+    Overlay multiple character PNGs (transparent BG) onto the bottom half of the clip.
+    poses: list of dicts {"path": str, "start": float, "end": float}
     """
-    if not os.path.exists(char_image):
-        print(f"  ⚠️  Character image not found: {char_image} — skipping overlay")
+    valid_poses = [p for p in poses if os.path.exists(p["path"])]
+    if not valid_poses:
+        print(f"  ⚠️  No character images found — skipping overlay")
         shutil.copy2(input_file, output_file)
         return
 
-    # Scale character to 1.4x bigger (HEIGHT * 0.7 = 1344px tall at 1080x1920).
-    # Anchor y: position so feet land at the very bottom of the frame.
     char_h = int(HEIGHT * 0.7)
-    anchor_y = HEIGHT - char_h          # feet at bottom edge
-    filter_complex = (
-        f"[1:v]scale=-2:{char_h}[char];"
-        f"[0:v][char]overlay=(W-w)/2:{anchor_y}:format=auto,setsar=1"
-    )
+    anchor_y = HEIGHT - char_h
+
+    inputs = ['-i', input_file]
+    filter_complex_parts = []
+    
+    # Scale each pose image
+    for i, pose in enumerate(valid_poses):
+        inputs.extend(['-i', pose["path"]])
+        filter_complex_parts.append(f"[{i+1}:v]scale=-2:{char_h}[c{i}]")
+    
+    # Chain overlays with enable='between(t,s,e)'
+    curr_v = "[0:v]"
+    for i, pose in enumerate(valid_poses):
+        out_v = f"[v{i+1}]"
+        # If it's the last one, we don't necessarily need a label, 
+        # but we need to add setsar=1 to the final output.
+        s = pose["start"]
+        e = pose["end"]
+        filter_complex_parts.append(f"{curr_v}[c{i}]overlay=(W-w)/2:{anchor_y}:enable='between(t,{s},{e})':format=auto{out_v}")
+        curr_v = out_v
+
+    # Final touch: setsar=1 on the last video node
+    filter_complex_parts.append(f"{curr_v}setsar=1[fout]")
+    filter_complex = ";".join(filter_complex_parts)
+
     cmd = [
         'ffmpeg', '-y',
-        '-i', input_file,
-        '-i', char_image,
+    ] + inputs + [
         '-filter_complex', filter_complex,
+        '-map', '[fout]',
         '-c:v', 'libx264', '-preset', 'fast', '-crf', '20',
         '-pix_fmt', 'yuv420p', '-an',
         output_file,
     ]
-    run_cmd(cmd, f"Overlaying character on {os.path.basename(output_file)}")
+    run_cmd(cmd, f"Overlaying {len(valid_poses)} poses on {os.path.basename(output_file)}")
 
 
 def concat_with_xfade(clip_files, output_file):
@@ -624,8 +643,7 @@ def main():
     rec_target_durs = rec_clip_durs if has_stats else rec_clip_durs
     clip_names = ["hook", "tutorial", "cta"]
 
-    # ── Pick avatar that MATCHES the voice gender ──────────────
-    # generate_script.py writes voice_choice.json with {"gender": "male"/"female"}
+    # ── Pick character poses that MATCH the voice gender ───────
     script_dir   = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
 
@@ -639,29 +657,27 @@ def main():
         except Exception:
             gender = None
 
-    if gender == "male":
-        preferred = os.path.join(project_root, "images", "male.png")
-        fallback  = os.path.join(project_root, "images", "female.png")
-    elif gender == "female":
-        preferred = os.path.join(project_root, "images", "female.png")
-        fallback  = os.path.join(project_root, "images", "male.png")
-    else:
-        # No voice_choice.json yet — pick at random
-        preferred = os.path.join(project_root, "images",
-                                 random.choice(["male.png", "female.png"]))
-        fallback  = None
+    if gender not in ["male", "female"]:
+        gender = random.choice(["male", "female"])
 
-    if os.path.exists(preferred):
-        chosen_char = preferred
-    elif fallback and os.path.exists(fallback):
-        chosen_char = fallback
-    else:
-        chosen_char = None
+    suffix = "m" if gender == "male" else "f"
+    poses_paths = [os.path.join(project_root, "images", f"pose{j}_{suffix}.png") for j in range(1, 5)]
 
-    if chosen_char:
-        print(f"  [CHAR]  Tutorial character: {os.path.basename(chosen_char)} (gender={gender or 'random'})")
-    else:
-        print("  [!]  No character images found in images/ -- skipping avatar")
+    # Fallback to other gender if primary poses are missing
+    if not any(os.path.exists(p) for p in poses_paths):
+        suffix = "f" if suffix == "m" else "m"
+        poses_paths = [os.path.join(project_root, "images", f"pose{j}_{suffix}.png") for j in range(1, 5)]
+
+    # Define timing for poses (roughly matching the tutorial steps text)
+    # Step 1: 0.5-3.8, Step 2: 4.2-7.5, Step 3: 7.9-11.2, Step 4: 11.6-end
+    chosen_poses = [
+        {"path": poses_paths[0], "start": 0.0,  "end": 4.0},
+        {"path": poses_paths[1], "start": 4.0,  "end": 7.7},
+        {"path": poses_paths[2], "start": 7.7,  "end": 11.4},
+        {"path": poses_paths[3], "start": 11.4, "end": 999.0},
+    ]
+
+    print(f"  [CHAR]  Tutorial character: {gender} (4 poses loaded)")
 
     for i, (start, natural_dur) in enumerate(rec_slices):
         target_dur = rec_target_durs[i]
@@ -673,9 +689,9 @@ def main():
 
         prepare_clip(recording, raw_file, actual_dur, trim_start=start)
 
-        # ── Tutorial clip only: overlay the character in the bottom half ──
-        if i == 1 and chosen_char and not args.skip_text:
-            add_character_overlay(raw_file, char_file, chosen_char)
+        # ── Tutorial clip only: overlay the character poses in the bottom half ──
+        if i == 1 and not args.skip_text:
+            add_character_overlay(raw_file, char_file, chosen_poses)
             base_for_text = char_file
         else:
             base_for_text = raw_file
