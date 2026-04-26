@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--record-duration", type=int, default=30, help="Town recording duration in seconds")
     parser.add_argument("--groq-model", default="qwen/qwen3-32b", help="Groq model to use")
     parser.add_argument("--bg-music", default="subway_surfers.mp3", help="Background music")
+    parser.add_argument("--male", action="store_true", help="Use male voice narration")
     args = parser.parse_args()
 
     print("==================================================")
@@ -54,14 +55,17 @@ def main():
 
     # 2. Generate the AI Script and Voiceover
     print("\n🤖 2/4: Generating AI Script and Voiceover...")
-    run_step([
+    gen_script_cmd = [
         sys.executable, "scripts/generate_script.py",
         "--names", "followers.txt",
         "--houses", "web/data/houses.json",
         "--model", args.groq_model,
         "--newcomers", str(newcomers),
         "--unfollows", str(newly_abandoned)
-    ])
+    ]
+    if args.male:
+        gen_script_cmd.append("--male")
+    run_step(gen_script_cmd)
 
     # 3. Record the live website
     print(f"\n🎥 3/4: Recording the updated city website at {args.url}...")

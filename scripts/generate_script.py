@@ -113,6 +113,7 @@ async def main():
     parser.add_argument("--day",        type=int,                   help="Override Day number")
     parser.add_argument("--newcomers",  type=int,                   help="Override newcomers count")
     parser.add_argument("--unfollows",  type=int,                   help="Override unfollows count")
+    parser.add_argument("--male",       action="store_true",        help="Force male voice")
     args = parser.parse_args()
 
     stats = get_town_stats(args.names, args.houses)
@@ -145,8 +146,11 @@ async def main():
     # ── TTS ───────────────────────────────────────────────────────────────────
     print("Generating voice narration (with precise pauses for stat sync)...")
     try:
-        # Randomly pick male or female voice each run
-        gender = random.choice(["male", "female"])
+        # Randomly pick male or female voice each run, unless forced
+        if args.male:
+            gender = "male"
+        else:
+            gender = random.choice(["male", "female"])
         voice = "en-US-GuyNeural" if gender == "male" else "en-US-JennyNeural"
         print(f"  🎙️  Voice gender: {gender} ({voice})")
         # Save gender choice so compose_video.py picks the matching avatar
