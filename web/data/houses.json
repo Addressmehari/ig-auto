@@ -43,7 +43,7 @@
         "wallStyle": 2,
         "username": "double_hash",
         "has_terrace": false,
-        "abandoned": false,
+        "abandoned": true,
         "joined_at": "2026-04-25T10:11:11.820443",
         "last_seen": "2026-04-25T10:11:11.820443"
     },
